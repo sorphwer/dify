@@ -223,5 +223,18 @@ export const textToAudioStream = (url: string, isPublicAPI: boolean, header: { c
 export const fetchAccessToken = async (appCode: string) => {
   const headers = new Headers()
   headers.append('X-App-Code', appCode)
-  return get('/passport', { headers }) as Promise<{ access_token: string }>
+  
+
+  const urlParams = new URLSearchParams(window.location.search)
+  const custom_id = urlParams.get('custom_id')
+  // const username = urlParams.get('custom_id')
+
+  const params: Record<string, string> = {}
+  if (custom_id)
+    params.custom_id = custom_id
+
+  return get('/passport', { 
+    headers,
+    params 
+  }) as Promise<{ access_token: string }>
 }

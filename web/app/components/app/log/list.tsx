@@ -721,7 +721,7 @@ const ConversationList: FC<IConversationList> = ({ logs, appDetail, onRefresh })
         </thead>
         <tbody className="text-text-secondary system-sm-regular">
           {logs.data.map((log: any) => {
-            const endUser = log.from_end_user_session_id || log.from_account_name
+            const endUser = log.from_account_name || log.from_end_user_name || log.from_end_user_session_id
             const leftValue = get(log, isChatMode ? 'name' : 'message.inputs.query') || (!isChatMode ? (get(log, 'message.query') || get(log, 'message.inputs.default_input')) : '') || ''
             const rightValue = get(log, isChatMode ? 'message_count' : 'message.answer')
             return <tr

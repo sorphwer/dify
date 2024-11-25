@@ -255,8 +255,18 @@ class ChatConversationApi(Resource):
             case _:
                 query = query.order_by(Conversation.created_at.desc())
 
+
         conversations = db.paginate(query, page=args["page"], per_page=args["limit"], error_out=False)
 
+        for item in conversations.items:
+            if isinstance(item, tuple):
+                conversation, from_end_user_name = item
+                conversation.from_end_user_name = from_end_user_name
+            else:
+                end_user = db.session.query(EndUser).filter(EndUser.id == item.from_end_user_id).first()
+                item.from_end_user_name = end_user.name if end_user else None
+
+        
         return conversations
 
 

@@ -67,6 +67,11 @@ class LangFuseDataTrace(BaseTraceInstance):
     def workflow_trace(self, trace_info: WorkflowTraceInfo):
         trace_id = trace_info.workflow_app_log_id or trace_info.workflow_run_id
         user_id = trace_info.metadata.get("user_id")
+        end_user_data: EndUser = (
+                db.session.query(EndUser).filter(EndUser.id == user_id).first()
+            )
+        if end_user_data:
+            custom_id = end_user_data.name
         if trace_info.message_id:
             trace_id = trace_info.message_id
             name = TraceTaskName.MESSAGE_TRACE.value
@@ -76,7 +81,10 @@ class LangFuseDataTrace(BaseTraceInstance):
                 name=name,
                 input=trace_info.workflow_run_inputs,
                 output=trace_info.workflow_run_outputs,
-                metadata=trace_info.metadata,
+                metadata={
+                    **trace_info.metadata,
+                    'custom_id': end_user_data.name
+                },
                 session_id=trace_info.conversation_id,
                 tags=["message", "workflow"],
                 created_at=trace_info.start_time,
@@ -91,7 +99,10 @@ class LangFuseDataTrace(BaseTraceInstance):
                 trace_id=trace_id,
                 start_time=trace_info.start_time,
                 end_time=trace_info.end_time,
-                metadata=trace_info.metadata,
+                metadata={
+                    **trace_info.metadata,
+                    'custom_id': end_user_data.name
+                },
                 level=LevelEnum.DEFAULT if trace_info.error == "" else LevelEnum.ERROR,
                 status_message=trace_info.error or "",
             )
@@ -103,7 +114,10 @@ class LangFuseDataTrace(BaseTraceInstance):
                 name=TraceTaskName.WORKFLOW_TRACE.value,
                 input=trace_info.workflow_run_inputs,
                 output=trace_info.workflow_run_outputs,
-                metadata=trace_info.metadata,
+                metadata={
+                    **trace_info.metadata,
+                    'custom_id': end_user_data.name
+                },
                 session_id=trace_info.conversation_id,
                 tags=["workflow"],
             )
@@ -249,7 +263,9 @@ class LangFuseDataTrace(BaseTraceInstance):
             if end_user_data is not None:
                 user_id = end_user_data.session_id
                 metadata["user_id"] = user_id
-
+        end_user_data: EndUser = (
+                db.session.query(EndUser).filter(EndUser.id == message_data.from_end_user_id).first()
+            )
         trace_data = LangfuseTrace(
             id=message_id,
             user_id=user_id,
@@ -265,7 +281,10 @@ class LangFuseDataTrace(BaseTraceInstance):
                 "created_at": trace_info.start_time,
             },
             output=trace_info.outputs,
-            metadata=metadata,
+            metadata={
+                    **trace_info.metadata,
+                    'custom_id': end_user_data.name
+                },
             session_id=message_data.conversation_id,
             tags=["message", str(trace_info.conversation_mode)],
             version=None,
@@ -291,7 +310,10 @@ class LangFuseDataTrace(BaseTraceInstance):
             model=message_data.model_id,
             input=trace_info.inputs,
             output=message_data.answer,
-            metadata=metadata,
+            metadata={
+                **trace_info.metadata,
+                'custom_id': end_user_data.name
+            },
             level=(LevelEnum.DEFAULT if message_data.status != "error" else LevelEnum.ERROR),
             status_message=message_data.error or "",
             usage=generation_usage,
@@ -395,6 +417,7 @@ class LangFuseDataTrace(BaseTraceInstance):
     def add_trace(self, langfuse_trace_data: Optional[LangfuseTrace] = None):
         format_trace_data = filter_none_values(langfuse_trace_data.model_dump()) if langfuse_trace_data else {}
         try:
+            logger.info("Trace data: %s", format_trace_data)
             self.langfuse_client.trace(**format_trace_data)
             logger.debug("LangFuse Trace created successfully")
         except Exception as e:
